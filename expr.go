@@ -25,7 +25,7 @@ type prog struct {
 }
 
 type evalContext struct {
-	stack [16]*slot
+	stack [16]int
 }
 
 func (p *prog) eval(ctx *evalContext) datum {
@@ -36,18 +36,18 @@ func (p *prog) eval(ctx *evalContext) datum {
 		case DATUM:
 		case PLUS:
 			sptr -= 2
-			p.data[dptr].i = stack[sptr+1].i + stack[sptr].i
+			p.data[dptr].i = p.data[stack[sptr+1]].i + p.data[stack[sptr]].i
 		case MINUS:
 			sptr -= 2
-			p.data[dptr].i = stack[sptr+1].i - stack[sptr].i
+			p.data[dptr].i = p.data[stack[sptr+1]].i - p.data[stack[sptr]].i
 		default:
 			panic("not reached")
 		}
-		stack[sptr] = &p.data[dptr]
+		stack[sptr] = dptr
 		sptr++
 		dptr++
 	}
-	return &stack[sptr-1].i
+	return &p.data[stack[sptr-1]].i
 }
 
 type expr interface {
