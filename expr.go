@@ -1,6 +1,8 @@
 package exprcomp
 
-import "unsafe"
+import (
+	"time"
+)
 
 type instruction byte
 
@@ -10,13 +12,20 @@ const (
 	MINUS
 )
 
+type slot struct {
+	i dint
+	f float64
+	s string
+	t time.Time
+}
+
 type prog struct {
 	ins  []instruction
-	data []unsafe.Pointer
+	data []slot
 }
 
 type evalContext struct {
-	stack [16]unsafe.Pointer
+	stack [16]*slot
 }
 
 func (p *prog) eval(ctx *evalContext) datum {
@@ -27,18 +36,18 @@ func (p *prog) eval(ctx *evalContext) datum {
 		case DATUM:
 		case PLUS:
 			sptr -= 2
-			*((*dint)(p.data[dptr])) = *((*dint)(stack[sptr+1])) + *((*dint)(stack[sptr]))
+			p.data[dptr].i = stack[sptr+1].i + stack[sptr].i
 		case MINUS:
 			sptr -= 2
-			*((*dint)(p.data[dptr])) = *((*dint)(stack[sptr+1])) - *((*dint)(stack[sptr]))
+			p.data[dptr].i = stack[sptr+1].i - stack[sptr].i
 		default:
 			panic("not reached")
 		}
-		stack[sptr] = p.data[dptr]
+		stack[sptr] = &p.data[dptr]
 		sptr++
 		dptr++
 	}
-	return (*dint)(stack[sptr-1])
+	return &stack[sptr-1].i
 }
 
 type expr interface {
@@ -62,7 +71,7 @@ func (n *plus) compile(p *prog) {
 	n.right.compile(p)
 	n.left.compile(p)
 	p.ins = append(p.ins, PLUS)
-	p.data = append(p.data, unsafe.Pointer(newInt(0)))
+	p.data = append(p.data, slot{})
 }
 
 type minus struct {
@@ -77,7 +86,7 @@ func (n *minus) compile(p *prog) {
 	n.right.compile(p)
 	n.left.compile(p)
 	p.ins = append(p.ins, MINUS)
-	p.data = append(p.data, unsafe.Pointer(newInt(0)))
+	p.data = append(p.data, slot{})
 }
 
 type dint int64
@@ -92,5 +101,5 @@ func (n *dint) eval() datum {
 
 func (n *dint) compile(p *prog) {
 	p.ins = append(p.ins, DATUM)
-	p.data = append(p.data, unsafe.Pointer(n))
+	p.data = append(p.data, slot{i: *n})
 }
