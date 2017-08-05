@@ -40,10 +40,10 @@ func BenchmarkCompile(b *testing.B) {
 	e := makeExpr()
 	var p prog
 	e.compile(&p)
-	stack := make([]datum, 0, 16)
+	var ctx evalContext
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if v := p.eval(stack).(*dint); *v != 2 {
+		if v := p.eval(&ctx).(*dint); *v != 2 {
 			b.Fatalf("unexpected value: %d", *v)
 		}
 	}

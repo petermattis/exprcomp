@@ -1,5 +1,7 @@
 package exprcomp
 
+import "unsafe"
+
 type instruction byte
 
 const (
@@ -10,21 +12,25 @@ const (
 
 type prog struct {
 	ins  []instruction
-	data []datum
+	data []unsafe.Pointer
 }
 
-func (p *prog) eval(stack []datum) datum {
-	stack = stack[:cap(stack)]
+type evalContext struct {
+	stack [16]unsafe.Pointer
+}
+
+func (p *prog) eval(ctx *evalContext) datum {
+	stack := ctx.stack[:len(ctx.stack)]
 	var sptr, dptr int
 	for _, i := range p.ins {
 		switch i {
 		case DATUM:
 		case PLUS:
 			sptr -= 2
-			*p.data[dptr].(*dint) = *stack[sptr+1].(*dint) + *stack[sptr].(*dint)
+			*((*dint)(p.data[dptr])) = *((*dint)(stack[sptr+1])) + *((*dint)(stack[sptr]))
 		case MINUS:
 			sptr -= 2
-			*p.data[dptr].(*dint) = *stack[sptr+1].(*dint) - *stack[sptr].(*dint)
+			*((*dint)(p.data[dptr])) = *((*dint)(stack[sptr+1])) - *((*dint)(stack[sptr]))
 		default:
 			panic("not reached")
 		}
@@ -32,7 +38,7 @@ func (p *prog) eval(stack []datum) datum {
 		sptr++
 		dptr++
 	}
-	return stack[sptr-1]
+	return (*dint)(stack[sptr-1])
 }
 
 type expr interface {
@@ -56,7 +62,7 @@ func (n *plus) compile(p *prog) {
 	n.right.compile(p)
 	n.left.compile(p)
 	p.ins = append(p.ins, PLUS)
-	p.data = append(p.data, newInt(0))
+	p.data = append(p.data, unsafe.Pointer(newInt(0)))
 }
 
 type minus struct {
@@ -71,12 +77,12 @@ func (n *minus) compile(p *prog) {
 	n.right.compile(p)
 	n.left.compile(p)
 	p.ins = append(p.ins, MINUS)
-	p.data = append(p.data, newInt(0))
+	p.data = append(p.data, unsafe.Pointer(newInt(0)))
 }
 
 type dint int64
 
-func newInt(v int64) datum {
+func newInt(v int64) *dint {
 	return (*dint)(&v)
 }
 
@@ -86,5 +92,5 @@ func (n *dint) eval() datum {
 
 func (n *dint) compile(p *prog) {
 	p.ins = append(p.ins, DATUM)
-	p.data = append(p.data, n)
+	p.data = append(p.data, unsafe.Pointer(n))
 }
